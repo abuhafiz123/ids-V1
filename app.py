@@ -1,6 +1,7 @@
 import time
 import socket
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 from scapy.all import sniff, TCP, UDP, IP
 import joblib
@@ -234,8 +235,8 @@ alert_system = AlertSystem()
 
 def detect_threats(features):
     threats = []
-    feature_vector = np.array([[features.get(name, 0) for name in expected_features]])
-    pred = rf_model.predict(feature_vector)[0]
+    X = pd.DataFrame([features], columns=expected_features)
+    pred = rf_model.predict(X)[0]
     if pred != 4:  # Not Normal Traffic
         threats.append({
             'type': 'ml_rf',
