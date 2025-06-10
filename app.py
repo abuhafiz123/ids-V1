@@ -235,8 +235,8 @@ alert_system = AlertSystem()
 
 def detect_threats(features):
     threats = []
-    X = pd.DataFrame([features], columns=expected_features)
-    pred = rf_model.predict(X)[0]
+    feature_vector = np.array([[features.get(name, 0) for name in expected_features]])
+    pred = rf_model.predict(feature_vector)[0]
     if pred != 4:  # Not Normal Traffic
         threats.append({
             'type': 'ml_rf',
@@ -249,5 +249,5 @@ def detect_threats(features):
 # ====== MAIN ======
 if __name__ == "__main__":
     iface = "enp0s3"  # Change as needed
-    print(f"Starting flow-based IDS on interface {iface}...")
+    print(f"Starting IDS on interface {iface}...")
     sniff(iface=iface, prn=process_packet, store=0)
