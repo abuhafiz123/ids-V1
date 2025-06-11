@@ -257,11 +257,14 @@ type_names = {
 rf_model = joblib.load("model_rf.joblib")
 alert_system = AlertSystem()
 
+import pandas as pd
+
 def detect_threats(features):
     threats = []
-    feature_vector = np.array([[features.get(name, 0) for name in expected_features]])
-    pred = rf_model.predict(feature_vector)[0]
-    if pred != 4:  # Not Normal Traffic
+    X_pred = pd.DataFrame([features], columns=expected_features)
+    pred = rf_model.predict(X_pred)[0]
+    print("Prediction:", pred)  # Shows all predictions for debugging
+    if pred != 4:
         threats.append({
             'type': 'ml_rf',
             'confidence': 1.0,
@@ -269,6 +272,7 @@ def detect_threats(features):
             'attack_type': type_names[int(pred)]
         })
     return threats
+
 
 # ====== MAIN ======
 if __name__ == "__main__":
