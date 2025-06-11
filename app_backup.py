@@ -8,25 +8,19 @@ import joblib
 import logging
 import json
 from datetime import datetime
-import colorama
-from colorama import Fore, Style
-colorama.init()
 
 # ====== ALERT LOGGING SYSTEM ======
 class AlertSystem:
-    def __init__(self, log_file="ids_alerts.log", pretty_log_file="ids_alerts_human.log"):
+    def __init__(self, log_file="ids_alerts.log"):
         self.logger = logging.getLogger("IDS_Alerts")
         self.logger.setLevel(logging.INFO)
         handler = logging.FileHandler(log_file)
-        pretty_handler = logging.FileHandler(pretty_log_file)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s'
+        )
         handler.setFormatter(formatter)
-        pretty_handler.setFormatter(formatter)
-
         if not self.logger.handlers:
             self.logger.addHandler(handler)
-            self.logger.addHandler(pretty_handler)
-        self.pretty_handler = pretty_handler  # For human-readable logs
 
     def generate_alert(self, threat, packet_info):
         alert = {
@@ -40,22 +34,7 @@ class AlertSystem:
             'attack_type': threat.get('attack_type'),
             'details': threat
         }
-        # JSON log for automation
         self.logger.warning(json.dumps(alert))
-
-        # Pretty terminal + log line
-        alert_msg = (
-            f"[{alert['timestamp']}] "
-            f"{Fore.RED if alert['confidence'] > 0.8 else Fore.YELLOW}"
-            f"ALERT: {alert['attack_type']} (Confidence: {alert['confidence']*100:.0f}%) "
-            f"from {alert['source_ip']}:{alert['source_port']} "
-            f"to {alert['destination_ip']}:{alert['destination_port']}"
-            f"{Style.RESET_ALL}"
-        )
-        print(alert_msg)
-        self.pretty_handler.stream.write(alert_msg + "\n")
-        self.pretty_handler.flush()
-
         if threat['confidence'] > 0.8:
             self.logger.critical(
                 f"High confidence threat detected: {json.dumps(alert)}"
@@ -211,10 +190,8 @@ def process_packet(pkt):
         flows[flow_key] = FlowBuffer(flow_key)
     direction = get_direction(pkt, flow_key)
     flows[flow_key].add_packet(pkt, direction, now)
-
     # -- Flow expiry logic (time-based)
-    # Only expire if flow is old
-    if flows[flow_key].flow_start_time and (now - flows[flow_key].flow_start_time > FLOW_TIMEOUT):
+    if now - flows[flow_key].flow_start_time > FLOW_TIMEOUT:
         features = flows[flow_key].compute_features()
         packet_info = {
             'source_ip': flow_key[0],
@@ -226,7 +203,6 @@ def process_packet(pkt):
         for threat in threats:
             alert_system.generate_alert(threat, packet_info)
         del flows[flow_key]
-
 
 # ====== DETECTION ENGINE ======
 expected_features = [
@@ -273,7 +249,5 @@ def detect_threats(features):
 # ====== MAIN ======
 if __name__ == "__main__":
     iface = "enp0s3"  # Change as needed
-    print(f"{Fore.CYAN}Starting IDS on interface {iface}...{Style.RESET_ALL}")
-    print(f"{'Time':<25} {'Attack':<15} {'Src IP:Port':<22} {'Dst IP:Port':<22} {'Confidence':<12}")
+    print(f"Starting IDS on interface {iface}...")
     sniff(iface=iface, prn=process_packet, store=0)
-
