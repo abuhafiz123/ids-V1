@@ -43,11 +43,21 @@ class AlertSystem:
         # JSON log for automation
         self.logger.warning(json.dumps(alert))
 
-        # Pretty terminal + log line
+        # Color based on alert type and confidence
+        if alert['attack_type'] == 'Normal Traffic':
+            color = Fore.GREEN
+            prefix = "INFO"
+        elif alert['confidence'] > 0.8:
+            color = Fore.RED
+            prefix = "ALERT"
+        else:
+            color = Fore.YELLOW
+            prefix = "ALERT"
+
         alert_msg = (
             f"[{alert['timestamp']}] "
-            f"{Fore.RED if alert['confidence'] > 0.8 else Fore.YELLOW}"
-            f"ALERT: {alert['attack_type']} (Confidence: {alert['confidence']*100:.0f}%) "
+            f"{color}{prefix}: {alert['attack_type']} "
+            f"(Confidence: {alert['confidence']*100:.0f}%) "
             f"from {alert['source_ip']}:{alert['source_port']} "
             f"to {alert['destination_ip']}:{alert['destination_port']}"
             f"{Style.RESET_ALL}"
@@ -56,7 +66,7 @@ class AlertSystem:
         self.pretty_handler.stream.write(alert_msg + "\n")
         self.pretty_handler.flush()
 
-        if threat['confidence'] > 0.8:
+        if alert['confidence'] > 0.8 and alert['attack_type'] != 'Normal Traffic':
             self.logger.critical(
                 f"High confidence threat detected: {json.dumps(alert)}"
             )
@@ -227,7 +237,6 @@ def process_packet(pkt):
             alert_system.generate_alert(threat, packet_info)
         del flows[flow_key]
 
-
 # ====== DETECTION ENGINE ======
 expected_features = [
     'Packet Length Std', 'Packet Length Variance', 'Average Packet Size',
@@ -257,22 +266,19 @@ type_names = {
 rf_model = joblib.load("model_rf.joblib")
 alert_system = AlertSystem()
 
-import pandas as pd
-
 def detect_threats(features):
     threats = []
     X_pred = pd.DataFrame([features], columns=expected_features)
     pred = rf_model.predict(X_pred)[0]
-    print("Prediction:", pred)  # Shows all predictions for debugging
-    if pred != 4:
-        threats.append({
-            'type': 'ml_rf',
-            'confidence': 1.0,
-            'prediction': int(pred),
-            'attack_type': type_names[int(pred)]
-        })
+    # You can optionally print all features for debugging:
+    # print("Features:", features)
+    threats.append({
+        'type': 'ml_rf',
+        'confidence': 1.0,
+        'prediction': int(pred),
+        'attack_type': type_names[int(pred)]
+    })
     return threats
-
 
 # ====== MAIN ======
 if __name__ == "__main__":
@@ -280,4 +286,3 @@ if __name__ == "__main__":
     print(f"{Fore.CYAN}Starting IDS on interface {iface}...{Style.RESET_ALL}")
     print(f"{'Time':<25} {'Attack':<15} {'Src IP:Port':<22} {'Dst IP:Port':<22} {'Confidence':<12}")
     sniff(iface=iface, prn=process_packet, store=0)
-
